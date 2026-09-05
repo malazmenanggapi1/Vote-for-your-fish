@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐟 Iwak Balap v2 - Balapan Kelompok Ikan Terbang</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase Realtime Database SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+  
+  <!-- Typography & Styling -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(6, 182, 212, 0.5);
+      border-radius: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(6, 182, 212, 0.8);
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(2deg); }
+    }
+    .animate-float {
+      animation: float 3.5s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.05); }
+    }
+    .animate-glow {
+      animation: pulse-glow 2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-3 selection:bg-cyan-500 selection:text-black overflow-x-hidden">
+
+  <!-- Top Global Header -->
+  <header class="w-full max-w-5xl flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 p-3 rounded-2xl backdrop-blur-md shadow-2xl mb-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-xl shadow-lg shadow-cyan-500/20">
+        🐟
+      </div>
+      <div>
+        <h1 class="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400">
+          IWAK BALAP <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300">v2.0 Kelompok</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Balapan Kelompok Ikan Terbang Realtime</p>
+      </div>
+    </div>
+
+    <!-- Status Server & Room Selector -->
+    <div class="flex items-center gap-2 flex-wrap text-xs">
+      <!-- Status Health Storage Triad -->
+      <div id="storageSyncBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-950/80 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded-lg">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="storageSyncText" class="font-semibold text-[11px]">Identity Restored ⚡</span>
+      </div>
+
+      <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
+        <span id="serverStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+        <span id="serverStatusText" class="text-slate-300 font-semibold text-[11px]">Connecting...</span>
+      </div>
+
+      <div class="text-cyan-300 font-bold bg-cyan-950/60 px-3 py-1.5 rounded-xl border border-cyan-500/30 text-[11px]">
+        Room: <span id="roomCodeDisplay">IKAN-77</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner for ID Restored -->
+  <div id="identityAlert" class="w-full max-w-5xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 px-4 py-2 rounded-xl text-xs flex items-center justify-between mb-3 hidden transition-all">
+    <div class="flex items-center gap-2">
+      <span class="text-base">🛡️</span>
+      <span id="identityAlertText">Identitas dipulihkan secara otomatis dari cadangan penyimpanan!</span>
+    </div>
+    <button onclick="this.parentElement.classList.add('hidden')" class="text-slate-400 hover:text-white font-bold">✕</button>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- LAYAR 1: TAMPILAN AWAL (LEADERBOARD + BUAT/JOIN IKAN) -->
+  <!-- ==================================================== -->
+  <main id="screen-input" class="w-full max-w-5xl flex-1 flex flex-col gap-6 py-2">
+    
+    <!-- Hero Banner -->
+    <div class="text-center space-y-2 py-2">
+      <div class="inline-block relative">
+        <span class="text-6xl animate-float inline-block">🐟✨</span>
+        <span class="absolute -top-1 -right-4 bg-amber-500 text-black font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider shadow-lg">Multiplayer</span>
+      </div>
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-wide">
+        PILIH KELOMPOK IKANMU
+      </h2>
+      <p class="text-slate-400 text-xs sm:text-sm max-w-xl mx-auto">
+        Buat kelompok ikan baru beserta alasan orang harus bergabung, atau gabung ke kelompok favoritmu! Semakin banyak anggota kelompok, semakin kencang meluncur di arena balap.
+      </p>
+    </div>
+
+    <!-- Main Grid: Left = Tabs (Buat / Join), Right = Initial Leaderboard -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- LEFT COLUMN: Dual Tab Forms (7 Cols) -->
+      <div class="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur-md">
+        
+        <!-- Navigation Tabs Button -->
+        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950 border border-slate-800 rounded-xl mb-6">
+          <button id="tabBtnJoin" onclick="switchInputTab('join')" class="py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md">
+            <span>🤝</span> Join Kelompok
+          </button>
+          <button id="tabBtnCreate" onclick="switchInputTab('create')" class="py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2">
+            <span>➕</span> Buat Ikan Baru
+          </button>
+        </div>
+
+        <!-- TAB CONTENT 1: JOIN KELOMPOK IKAN -->
+        <div id="tabContentJoin" class="space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h3 class="text-base font-bold text-cyan-300">Daftar Kelompok Tersedia</h3>
+              <p class="text-xs text-slate-400">Pilih kelompok yang ingin kamu perkuat di arena balapan</p>
+            </div>
+            <!-- Search Bar -->
+            <div class="relative w-36 sm:w-48">
+              <input type="text" id="joinSearchInput" onkeyup="filterJoinList()" placeholder="🔍 Cari ikan..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600">
+            </div>
+          </div>
+
+          <!-- Fish Group List Container -->
+          <div id="joinFishContainer" class="space-y-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
+            <div class="text-center py-8 text-slate-500 text-xs italic">
+              Sedang memuat kelompok ikan...
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: BUAT IKAN BARU -->
+        <div id="tabContentCreate" class="space-y-4 hidden">
+          <div>
+            <h3 class="text-base font-bold text-cyan-300">Form Kelompok Ikan Baru</h3>
+            <p class="text-xs text-slate-400">Nama ikan tidak boleh sama dengan yang sudah ada di arena!</p>
+          </div>
+
+          <form id="createFishForm" class="space-y-4">
+            <!-- Nama Ikan Input -->
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">Nama Kelompok Ikan <span class="text-rose-400">*</span></label>
+              <input 
+                type="text" 
+                id="newFishNameInput" 
+                placeholder="Contoh: MEGASHARK" 
+                class="w-full px-4 py-3 bg-slate-950 border-2 border-slate-800 focus:border-cyan-400 rounded-xl text-slate-100 font-bold uppercase tracking-wider text-sm focus:outline-none transition"
+                maxlength="18"
+                required
+                autocomplete="off"
+              />
+              <div id="nameValidationBadge" class="mt-1.5 text-[11px] font-semibold hidden"></div>
+            </div>
+
+            <!-- Deskripsi Visi & Alasan -->
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">Deskripsi & Alasan Memilih Kelompok Ini <span class="text-rose-400">*</span></label>
+              <textarea 
+                id="newFishDescInput" 
+                rows="3" 
+                placeholder="Tulis alasan kenapa orang-orang harus bergabung ke kelompok ikanmu! (Misal: Hiu paling kencang pantang menyerah!)" 
+                class="w-full px-4 py-2.5 bg-slate-950 border-2 border-slate-800 focus:border-cyan-400 rounded-xl text-slate-200 text-xs focus:outline-none transition resize-none"
+                maxlength="120"
+                required
+              ></textarea>
+              <div class="text-right text-[10px] text-slate-500"><span id="descCharCount">0</span>/120</div>
+            </div>
+
+            <!-- Visual Color Picker -->
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">Warna Aura Ikan</label>
+              <div id="colorPaletteContainer" class="flex flex-wrap gap-2 pt-1">
+                <!-- Dynamically populated colors -->
+              </div>
+              <input type="hidden" id="selectedFishColor" value="#06b6d4">
+            </div>
+
+            <button 
+              type="submit" 
+              id="btnSubmitCreate" 
+              class="w-full py-3.5 bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold text-sm text-black rounded-xl shadow-lg shadow-cyan-500/20 active:scale-95 transition transform">
+              🚀 Buat Kelompok & Mulai Balapan!
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Initial Leaderboard Preview (5 Cols) -->
+      <div class="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur-md flex flex-col min-h-[420px]">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🏆</span>
+            <div>
+              <h3 class="font-extrabold text-base text-amber-400">Papan Peringkat Sementara</h3>
+              <p class="text-[11px] text-slate-400">Kelompok paling ramai anggotanya!</p>
+            </div>
+          </div>
+          <span class="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-full font-bold" id="totalTeamsCount">0 Kelompok</span>
+        </div>
+
+        <div id="initialLeaderboardList" class="flex-1 space-y-2.5 overflow-y-auto max-h-[380px] custom-scrollbar pr-1">
+          <div class="text-center py-12 text-slate-500 text-xs">
+            Belum ada kelompok ikan. Jadi yang pertama membuatnya!
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ==================================================== -->
+  <!-- LAYAR 2: ARENA BALAPAN REALTIME                      -->
+  <!-- ==================================================== -->
+  <section id="screen-race" class="w-full max-w-6xl flex flex-col items-center hidden transition-all duration-500 my-auto">
+    
+    <!-- Race HUD Header -->
+    <header class="w-full flex flex-col md:flex-row items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl mb-3 shadow-2xl backdrop-blur-md">
+      
+      <!-- My Team Badge -->
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <div id="myTeamColorDot" class="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-xl shadow-inner">
+          🐟
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-slate-400">Kelompokmu:</span>
+            <span id="myTeamNameBadge" class="text-sm font-extrabold text-cyan-300 uppercase tracking-wide">-</span>
+            <span id="myRankBadge" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-bold">Posisi #-</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Total Anggota Tim: <span id="myTeamMemberCount" class="text-white font-bold">0</span> orang</p>
+        </div>
+      </div>
+
+      <!-- Quick Search / Highlight -->
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <div class="relative flex-1 md:w-52">
+          <input 
+            type="text" 
+            id="highlightInput" 
+            placeholder="🔍 Sorot kelompok lain..." 
+            class="w-full px-3 py-2 bg-slate-950 border border-amber-500/40 rounded-xl text-xs font-bold uppercase text-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-400 placeholder:text-slate-600"
+            maxlength="20"
+          />
+          <button id="btnClearHighlight" class="absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs hidden">✕</button>
+        </div>
+        <button 
+          id="btnApplyHighlight" 
+          class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl transition shadow">
+          Sorot
+        </button>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+        <button 
+          id="btnOpenLeaderboard" 
+          class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow transition">
+          🏆 Leaderboard
+        </button>
+        <button 
+          id="btnFocusMyTeam" 
+          class="px-3.5 py-2 bg-cyan-700 hover:bg-cyan-600 text-white font-bold text-xs rounded-xl transition">
+          🎯 Kelompokku
+        </button>
+      </div>
+    </header>
+
+    <!-- Banner Highlight Bar -->
+    <div id="highlightBanner" class="w-full bg-amber-500/10 border border-amber-500/40 rounded-xl px-4 py-2 text-xs text-amber-300 font-bold flex items-center justify-between mb-2 hidden">
+      <span id="highlightBannerText">📍 Menyorot: -</span>
+      <button onclick="focusMyTeam()" class="underline hover:text-white text-[11px]">Kembali ke Kelompokku</button>
+    </div>
+
+    <!-- Arena Canvas Canvas Container -->
+    <div class="w-full bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative">
+      <div class="absolute top-3 left-4 z-10 bg-slate-900/80 backdrop-blur-sm px-3.5 py-1.5 rounded-full text-xs text-cyan-300 font-bold border border-cyan-500/30 flex items-center gap-2 shadow-lg">
+        <span>🚩 Start</span>
+        <span class="text-slate-500">➔</span>
+        <span class="text-amber-400">Anggota Terbanyak = Meluncur Paling Depan ➔</span>
+      </div>
+      <canvas id="raceCanvas" width="1000" height="540" class="w-full h-[540px] block cursor-pointer"></canvas>
+    </div>
+
+    <!-- Arena Footer Info & Reset -->
+    <div class="w-full mt-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl">
+      <div>
+        ID Pengguna: <span id="userIdDisplay" class="font-mono text-cyan-300 font-bold">...</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="btnViewDescModal" class="text-cyan-400 hover:underline">📜 Deskripsi Kelompok Ini</button>
+        <span>•</span>
+        <button id="btnLeaveTeam" class="text-rose-400 hover:underline">🚪 Keluar & Ganti Kelompok</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== -->
+  <!-- MODAL 1: LEADERBOARD ARENA                           -->
+  <!-- ==================================================== -->
+  <div id="leaderboardModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl p-5 shadow-2xl flex flex-col max-h-[85vh]">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+        <h3 class="font-extrabold text-xl text-amber-400 flex items-center gap-2">
+          🏆 Klasemen Papan Peringkat
+        </h3>
+        <button id="btnCloseLeaderboard" class="text-slate-400 hover:text-white text-xl font-bold px-2">✕</button>
+      </div>
+      <p class="text-xs text-slate-400 mb-3">Klik kelompok untuk menyorot posisinya di lintasan balap.</p>
+      <div id="leaderboardModalList" class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: DETAIL DESKRIPSI KELOMPOK -->
+  <div id="descModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <div id="modalTeamColorDot" class="w-6 h-6 rounded-full bg-cyan-500"></div>
+          <h3 id="modalTeamName" class="font-extrabold text-lg text-cyan-300">NAMA KELOMPOK</h3>
+        </div>
+        <button id="btnCloseDescModal" class="text-slate-400 hover:text-white text-xl font-bold px-2">✕</button>
+      </div>
+      
+      <div class="space-y-2">
+        <span class="text-xs text-slate-400 font-semibold block">Visi & Alasan Bergabung:</span>
+        <blockquote id="modalTeamDesc" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 italic leading-relaxed">
+          "..."
+        </blockquote>
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+        <span>Pembuat: <strong id="modalTeamCreator" class="text-slate-200">-</strong></span>
+        <span>Jumlah Anggota: <strong id="modalTeamMembers" class="text-cyan-300">0</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Footer -->
+  <footer class="mt-4 text-center text-[11px] text-slate-600">
+    Iwak Balap v2.0 • Triple-Layer Resilient Storage (IndexedDB + Cookie + LocalStorage)
+  </footer>
+
+  <script>
+    // ============================================================
+    // 1. TRIAD IDENTITY STORAGE PERSISTENCE SYSTEM 
+    //    (IndexedDB + Cookie + LocalStorage Self-Healing Engine)
+    // ============================================================
+    class TriadStorage {
+      static COOKIE_KEY = 'iwak_user_identity_v2';
+      static LS_KEY = 'iwak_user_identity_v2';
+      static DB_NAME = 'IwakBalapV2DB';
+      static DB_STORE = 'user_session';
+
+      // --- Cookie Helpers ---
+      static setCookie(name, val, days = 365) {
+        const d = new Date();
+        d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${encodeURIComponent(val)};expires=${d.toUTCString()};path=/;SameSite=Lax`;
+      }
+
+      static getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+          let c = ca[i].trim();
+          if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+        }
+        return null;
+      }
+
+      // --- IndexedDB Helpers ---
+      static openIDB() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(this.DB_NAME, 1);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(this.DB_STORE)) {
+              db.createObjectStore(this.DB_STORE);
+            }
+          };
+          req.onsuccess = (e) => resolve(e.target.result);
+          req.onerror = (e) => reject(e.target.error);
+        });
+      }
+
+      static async saveIDB(data) {
+        try {
+          const db = await this.openIDB();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(this.DB_STORE, 'readwrite');
+            const store = tx.objectStore(this.DB_STORE);
+            store.put(data, 'current_user');
+            tx.oncomplete = () => resolve();
+            tx.onerror = (e) => reject(e.target.error);
+          });
+        } catch(e) {
+          console.warn('IDB write failed:', e);
+        }
+      }
+
+      static async getIDB() {
+        try {
+          const db = await this.openIDB();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(this.DB_STORE, 'readonly');
+            const store = tx.objectStore(this.DB_STORE);
+            const req = store.get('current_user');
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+          });
+        } catch(e) {
+          return null;
+        }
+      }
+
+      // --- High-Velocity Recovery & Synchronization Engine ---
+      static async restoreAndSyncIdentity() {
+        let fromLS = null, fromCookie = null, fromIDB = null;
+
+        // 1. Try LocalStorage
+        try {
+          const raw = localStorage.getItem(this.LS_KEY);
+          if (raw) fromLS = JSON.parse(raw);
+        } catch(e) {}
+
+        // 2. Try Cookie
+        try {
+          const raw = this.getCookie(this.COOKIE_KEY);
+          if (raw) fromCookie = JSON.parse(raw);
+        } catch(e) {}
+
+        // 3. Try IndexedDB
+        try {
+          fromIDB = await this.getIDB();
+        } catch(e) {}
+
+        // Filter valid objects with userId
+        const validCandidates = [fromLS, fromCookie, fromIDB].filter(c => c && c.userId);
+        
+        // Sort by newest timestamp
+        validCandidates.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+        let bestIdentity = validCandidates[0] || null;
+
+        if (bestIdentity) {
+          // Identify missing storages for alert message
+          const missing = [];
+          if (!fromLS) missing.push('LocalStorage');
+          if (!fromCookie) missing.push('Cookie');
+          if (!fromIDB) missing.push('IndexedDB');
+
+          // Auto Healing: Write back to ALL three stores instantly
+          await this.persistAll(bestIdentity);
+
+          return { identity: bestIdentity, healedFrom: missing };
+        }
+
+        // If completely empty, generate new User Identity
+        const newIdentity = {
+          userId: 'USER_' + Math.random().toString(36).substring(2, 9).toUpperCase(),
+          team: null,
+          role: null,
+          updatedAt: Date.now()
+        };
+
+        await this.persistAll(newIdentity);
+        return { identity: newIdentity, healedFrom: [] };
+      }
+
+      static async persistAll(identityData) {
+        identityData.updatedAt = Date.now();
+        const jsonStr = JSON.stringify(identityData);
+
+        // Save to LocalStorage
+        try { localStorage.setItem(this.LS_KEY, jsonStr); } catch(e){}
+
+        // Save to Cookie (365 Days)
+        try { this.setCookie(this.COOKIE_KEY, jsonStr, 365); } catch(e){}
+
+        // Save to IndexedDB
+        try { await this.saveIDB(identityData); } catch(e){}
+      }
+    }
+
+    // ============================================================
+    // 2. NATIVE AUDIO SYNTHESIZER (Web Audio API)
+    // ============================================================
+    class SoundEffects {
+      static ctx = null;
+      static init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+      static playPop() {
+        try {
+          this.init();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch(e){}
+      }
+      static playJoin() {
+        try {
+          this.init();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(660, this.ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.2);
+        } catch(e){}
+      }
+    }
+
+    // ============================================================
+    // 3. GLOBAL STATE & CONFIG
+    // ============================================================
+    let currentUser = null; // { userId, team, role, updatedAt }
+    let currentlyHighlightedTeam = null;
+
+    const ROOM_ID = (window.location.hash.replace('#', '') || 'IKAN-77').toUpperCase();
+    document.getElementById('roomCodeDisplay').innerText = ROOM_ID;
+
+    const COLOR_PALETTE = [
+      '#06b6d4', '#f59e0b', '#ec4899', '#10b981', 
+      '#8b5cf6', '#ef4444', '#3b82f6', '#14b8a6',
+      '#eab308', '#a855f7', '#f97316', '#22c55e', '#38bdf8'
+    ];
+
+    // Teams state: { [teamName]: { name, description, createdBy, color, memberCount } }
+    const teamsData = {};
+    const fishPhysics = {}; // Canvas graphics state
+
+    // ============================================================
+    // 4. FIREBASE REALTIME DATABASE CONFIG & SYNC
+    // ============================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVonjEWLIms7huI4rtRoI_sMyAaC0v76s",
+      authDomain: "ikan-terbang-balap-e39c0.firebaseapp.com",
+      databaseURL: "https://ikan-terbang-balap-e39c0-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ikan-terbang-balap-e39c0",
+      storageBucket: "ikan-terbang-balap-e39c0.firebasestorage.app",
+      messagingSenderId: "1096281367950",
+      appId: "1:1096281367950:web:f9e198f32b2591b3a0f0df"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const serverStatusDot = document.getElementById('serverStatusDot');
+    const serverStatusText = document.getElementById('serverStatusText');
+
+    function setServerStatus(state) {
+      if (!serverStatusDot) return;
+      const map = {
+        connecting: ['w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse', 'Menghubungkan...'],
+        connected:  ['w-2.5 h-2.5 rounded-full bg-emerald-500', 'Server Online 🟢'],
+        offline:    ['w-2.5 h-2.5 rounded-full bg-rose-500', 'Terputus 🔴']
+      };
+      const [cls, text] = map[state] || map.connecting;
+      serverStatusDot.className = cls;
+      serverStatusText.innerText = text;
+    }
+
+    db.ref('.info/connected').on('value', (snap) => {
+      setServerStatus(snap.val() === true ? 'connected' : 'offline');
+    });
+
+    // Listen to all fish teams in current room
+    db.ref(`rooms/${ROOM_ID}/teams`).on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      
+      // Update local teamsData
+      Object.keys(teamsData).forEach(key => delete teamsData[key]);
+      Object.entries(data).forEach(([key, team]) => {
+        teamsData[key] = team;
+        registerFishPhysicsIfNeeded(key, team.color);
+      });
+
+      renderInitialLeaderboard();
+      renderJoinList();
+      updateRaceHUD();
+    });
+
+    // Hash helper for Y line positioning
+    function hashStringToY(str, min, max) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      return min + (Math.abs(hash % 1000) / 1000) * (max - min);
+    }
+
+    function registerFishPhysicsIfNeeded(teamName, color) {
+      if (fishPhysics[teamName]) return;
+      fishPhysics[teamName] = {
+        currentX: startLineX,
+        yPos: hashStringToY(teamName, 60, LOGICAL_H - 70),
+        color: color || '#06b6d4',
+        wingAngle: Math.random() * Math.PI,
+        particles: []
+      };
+    }
+
+    // ============================================================
+    // 5. DOM UI CONTROLLERS & TABS
+    // ============================================================
+    function initColorPalette() {
+      const container = document.getElementById('colorPaletteContainer');
+      container.innerHTML = '';
+      COLOR_PALETTE.forEach((col, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-7 h-7 rounded-full transition transform hover:scale-110 border-2 ${idx === 0 ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`;
+        btn.style.backgroundColor = col;
+        btn.onclick = () => {
+          document.querySelectorAll('#colorPaletteContainer button').forEach(b => {
+            b.classList.remove('border-white', 'scale-110', 'shadow-lg');
+            b.classList.add('border-transparent');
+          });
+          btn.classList.remove('border-transparent');
+          btn.classList.add('border-white', 'scale-110', 'shadow-lg');
+          document.getElementById('selectedFishColor').value = col;
+          SoundEffects.playPop();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function switchInputTab(tab) {
+      const tabBtnJoin = document.getElementById('tabBtnJoin');
+      const tabBtnCreate = document.getElementById('tabBtnCreate');
+      const tabContentJoin = document.getElementById('tabContentJoin');
+      const tabContentCreate = document.getElementById('tabContentCreate');
+
+      if (tab === 'join') {
+        tabBtnJoin.className = 'py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md';
+        tabBtnCreate.className = 'py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2';
+        tabContentJoin.classList.remove('hidden');
+        tabContentCreate.classList.add('hidden');
+      } else {
+        tabBtnCreate.className = 'py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md';
+        tabBtnJoin.className = 'py-2.5 px-3 rounded-lg text-xs sm:text-sm font-bold text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2';
+        tabContentCreate.classList.remove('hidden');
+        tabContentJoin.classList.add('hidden');
+      }
+      SoundEffects.playPop();
+    }
+
+    // Character counter for description
+    const newFishDescInput = document.getElementById('newFishDescInput');
+    newFishDescInput.addEventListener('input', () => {
+      document.getElementById('descCharCount').innerText = newFishDescInput.value.length;
+    });
+
+    // Realtime Duplicate Check on Input
+    const newFishNameInput = document.getElementById('newFishNameInput');
+    const nameValidationBadge = document.getElementById('nameValidationBadge');
+
+    newFishNameInput.addEventListener('input', () => {
+      const formatted = newFishNameInput.value.trim().toUpperCase();
+      if (!formatted) {
+        nameValidationBadge.classList.add('hidden');
+        return;
+      }
+
+      if (teamsData[formatted]) {
+        nameValidationBadge.className = 'mt-1.5 text-[11px] font-bold text-rose-400 flex items-center gap-1';
+        nameValidationBadge.innerHTML = `<span>❌ Nama "${formatted}" sudah dipakai! Silakan Join kelompok ini atau pilih nama lain.</span>`;
+        nameValidationBadge.classList.remove('hidden');
+      } else {
+        nameValidationBadge.className = 'mt-1.5 text-[11px] font-bold text-emerald-400 flex items-center gap-1';
+        nameValidationBadge.innerHTML = `<span>✅ Nama "${formatted}" tersedia! Kamu akan jadi pembuat kelompok ini.</span>`;
+        nameValidationBadge.classList.remove('hidden');
+      }
+    });
+
+    // Form Submit: Create New Fish Team
+    document.getElementById('createFishForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = newFishNameInput.value.trim().toUpperCase();
+      const desc = newFishDescInput.value.trim();
+      const color = document.getElementById('selectedFishColor').value;
+
+      if (!name || !desc) return;
+
+      if (teamsData[name]) {
+        alert(`Nama kelompok "${name}" sudah digunakan! Silakan pilih opsi "Join Kelompok" untuk bergabung.`);
+        switchInputTab('join');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitCreate');
+      btn.disabled = true;
+      btn.innerText = 'Membuat Kelompok...';
+
+      try {
+        const teamRef = db.ref(`rooms/${ROOM_ID}/teams/${name}`);
+        const voterRef = db.ref(`rooms/${ROOM_ID}/voters/${currentUser.userId}`);
+
+        // Atomic transaction to create team & record vote
+        await teamRef.set({
+          name: name,
+          description: desc,
+          createdBy: currentUser.userId,
+          color: color,
+          memberCount: 1,
+          createdAt: Date.now()
+        });
+
+        await voterRef.set(name);
+
+        // Update local user identity
+        currentUser.team = name;
+        currentUser.role = 'creator';
+        await TriadStorage.persistAll(currentUser);
+
+        SoundEffects.playJoin();
+        currentlyHighlightedTeam = name;
+        showRaceScreen();
+      } catch(err) {
+        alert('Gagal membuat kelompok: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '🚀 Buat Kelompok & Mulai Balapan!';
+      }
+    });
+
+    // Join Existing Fish Group Function
+    async function joinExistingTeam(teamName) {
+      if (!teamsData[teamName]) return;
+
+      const teamRef = db.ref(`rooms/${ROOM_ID}/teams/${teamName}/memberCount`);
+      const voterRef = db.ref(`rooms/${ROOM_ID}/voters/${currentUser.userId}`);
+
+      try {
+        // Increment count atomically in database
+        await teamRef.transaction((c) => (c || 0) + 1);
+        await voterRef.set(teamName);
+
+        currentUser.team = teamName;
+        currentUser.role = 'member';
+        await TriadStorage.persistAll(currentUser);
+
+        SoundEffects.playJoin();
+        currentlyHighlightedTeam = teamName;
+        showRaceScreen();
+      } catch(err) {
+        alert('Gagal bergabung ke kelompok: ' + err.message);
+      }
+    }
+
+    // Leave current fish group
+    document.getElementById('btnLeaveTeam').addEventListener('click', async () => {
+      if (!confirm('Ingin keluar dari kelompok ini dan memilih/membuat kelompok lain?')) return;
+
+      if (currentUser.team) {
+        const oldTeam = currentUser.team;
+        const teamRef = db.ref(`rooms/${ROOM_ID}/teams/${oldTeam}/memberCount`);
+        const voterRef = db.ref(`rooms/${ROOM_ID}/voters/${currentUser.userId}`);
+
+        voterRef.remove();
+        teamRef.transaction((c) => Math.max(0, (c || 0) - 1));
+      }
+
+      currentUser.team = null;
+      currentUser.role = null;
+      await TriadStorage.persistAll(currentUser);
+
+      currentlyHighlightedTeam = null;
+      showInputScreen();
+    });
+
+    // ============================================================
+    // 6. RENDERERS FOR INITIAL SCREEN & JOIN LIST
+    // ============================================================
+    function renderInitialLeaderboard() {
+      const container = document.getElementById('initialLeaderboardList');
+      const teams = Object.values(teamsData).sort((a, b) => b.memberCount - a.memberCount);
+
+      document.getElementById('totalTeamsCount').innerText = `${teams.length} Kelompok`;
+
+      if (teams.length === 0) {
+        container.innerHTML = `<div class="text-center py-12 text-slate-500 text-xs">Belum ada kelompok ikan. Jadi yang pertama membuatnya!</div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      teams.forEach((team, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2 hover:border-slate-700 transition';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-xs ${idx < 3 ? 'text-amber-400 text-sm' : 'text-slate-500'}">${medal}</span>
+              <div class="w-3.5 h-3.5 rounded-full" style="background-color: ${team.color}"></div>
+              <span class="font-bold text-xs text-white uppercase tracking-wider">${team.name}</span>
+            </div>
+            <span class="text-[11px] font-extrabold text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">${team.memberCount} Anggota</span>
+          </div>
+          <p class="text-[11px] text-slate-400 italic line-clamp-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80">
+            "${team.description}"
+          </p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderJoinList() {
+      const container = document.getElementById('joinFishContainer');
+      const teams = Object.values(teamsData).sort((a, b) => b.memberCount - a.memberCount);
+
+      if (teams.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            Belum ada kelompok ikan yang dibuat.<br>
+            <button onclick="switchInputTab('create')" class="mt-2 text-cyan-400 font-bold underline">Klik di sini untuk membuat ikan pertama!</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      teams.forEach((team) => {
+        const card = document.createElement('div');
+        card.className = 'team-join-card p-3 bg-slate-950 border border-slate-800 hover:border-cyan-500/50 rounded-xl space-y-2 transition shadow-sm';
+        card.setAttribute('data-name', team.name.toLowerCase());
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-4 h-4 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${team.color}"></div>
+              <div>
+                <h4 class="font-bold text-xs text-white uppercase tracking-wider">${team.name}</h4>
+                <span class="text-[10px] text-slate-400">${team.memberCount} Pendukung Meluncur</span>
+              </div>
+            </div>
+            <button onclick="joinExistingTeam('${team.name}')" class="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs rounded-lg shadow transition transform active:scale-95">
+              Gabung 🐟
+            </button>
+          </div>
+          <blockquote class="text-[11px] text-slate-300 italic bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+            "${team.description}"
+          </blockquote>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterJoinList() {
+      const query = document.getElementById('joinSearchInput').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.team-join-card');
+      cards.forEach(card => {
+        const name = card.getAttribute('data-name');
+        if (name.includes(query)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    // ============================================================
+    // 7. CANVAS & ANIMATION RENDER ENGINE
+    // ============================================================
+    const canvas = document.getElementById('raceCanvas');
+    const ctx = canvas.getContext('2d');
+    const startLineX = 60;
+    const LOGICAL_W = 1000, LOGICAL_H = 540;
+
+    function fitCanvasToDPR() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = LOGICAL_W * dpr;
+      canvas.height = LOGICAL_H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    fitCanvasToDPR();
+    window.addEventListener('resize', fitCanvasToDPR);
+
+    let waveOffset = 0;
+
+    function renderRaceCanvas() {
+      ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+      // Night Sky Water Gradient
+      const sky = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
+      sky.addColorStop(0, '#0284c7');
+      sky.addColorStop(0.35, '#0f172a');
+      sky.addColorStop(1, '#020617');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+      // Start Line
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(startLineX, 25);
+      ctx.lineTo(startLineX, LOGICAL_H - 25);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Ocean Waves Effect
+      waveOffset += 0.04;
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+      ctx.beginPath();
+      ctx.moveTo(0, LOGICAL_H);
+      for (let x = 0; x <= LOGICAL_W; x += 15) {
+        ctx.lineTo(x, LOGICAL_H - 25 + Math.sin(x * 0.02 + waveOffset) * 6);
+      }
+      ctx.lineTo(LOGICAL_W, LOGICAL_H);
+      ctx.fill();
+
+      // Dynamic Track Scaling
+      const allTeams = Object.values(teamsData);
+      const sorted = [...allTeams].sort((a, b) => b.memberCount - a.memberCount);
+      const maxVotes = sorted.length > 0 ? Math.max(sorted[0].memberCount, 5) : 5;
+      const leaderTeamName = sorted.length > 0 && sorted[0].memberCount > 0 ? sorted[0].name : null;
+
+      const maxTrackWidth = LOGICAL_W - startLineX - 90;
+
+      let highlightedFishToDraw = null;
+
+      allTeams.forEach((team, idx) => {
+        const physics = fishPhysics[team.name];
+        if (!physics) return;
+
+        const targetX = startLineX + (team.memberCount / maxVotes) * maxTrackWidth;
+        physics.currentX += (targetX - physics.currentX) * 0.05;
+
+        const hoverY = physics.yPos + Math.sin(Date.now() * 0.004 + idx * 1.7) * 8;
+        physics.wingAngle = Math.sin(Date.now() * 0.015 + idx);
+
+        // Water particles trail
+        for (let pIdx = physics.particles.length - 1; pIdx >= 0; pIdx--) {
+          const p = physics.particles[pIdx];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= 0.03;
+          ctx.fillStyle = `rgba(103, 232, 249, ${p.life})`;
+          ctx.beginPath();
+          ctx.arc(p.x, hoverY + p.y, 2, 0, Math.PI * 2);
+          ctx.fill();
+          if (p.life <= 0) physics.particles.splice(pIdx, 1);
+        }
+
+        const isLeader = (team.name === leaderTeamName);
+        const isHighlight = (team.name === currentlyHighlightedTeam);
+
+        if (isHighlight) {
+          highlightedFishToDraw = { x: physics.currentX, y: hoverY, color: team.color, name: team.name, count: team.memberCount, wingAngle: physics.wingAngle, isLeader };
+        } else {
+          drawFlyingFish(physics.currentX, hoverY, team.color, team.name, team.memberCount, physics.wingAngle, isLeader, false);
+        }
+      });
+
+      // Draw highlighted fish on top layer
+      if (highlightedFishToDraw) {
+        drawFlyingFish(
+          highlightedFishToDraw.x,
+          highlightedFishToDraw.y,
+          highlightedFishToDraw.color,
+          highlightedFishToDraw.name,
+          highlightedFishToDraw.count,
+          highlightedFishToDraw.wingAngle,
+          highlightedFishToDraw.isLeader,
+          true
+        );
+      }
+
+      requestAnimationFrame(renderRaceCanvas);
+    }
+
+    function drawFlyingFish(x, y, color, name, count, wingAngle, isLeader, isHighlight) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Spotlight / Aura Sorot
+      if (isHighlight) {
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 32, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.moveTo(0, -38);
+        ctx.lineTo(-6, -48);
+        ctx.lineTo(6, -48);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Leader Crown #1
+      if (isLeader) {
+        ctx.font = '16px serif';
+        ctx.fillText('👑', -8, -25);
+      }
+
+      // Top Wing
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.beginPath();
+      ctx.ellipse(-2, -6 + wingAngle * 4, 15, 5, -Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Fish Body
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 18, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(-16, 0);
+      ctx.lineTo(-25, -9);
+      ctx.lineTo(-21, 0);
+      ctx.lineTo(-25, 9);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(8, -3, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(9, -3, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bottom Wing
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.beginPath();
+      ctx.ellipse(-2, 6 - wingAngle * 3, 13, 4, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Name & Member Count Badge
+      ctx.fillStyle = isHighlight ? '#fde047' : '#ffffff';
+      ctx.font = isHighlight ? 'bold 12px Fredoka' : 'bold 10px Fredoka';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = 'black';
+      ctx.shadowBlur = 4;
+      ctx.fillText(`${name} (${count}👥)`, 0, -12);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+
+    // ============================================================
+    // 8. HIGHLIGHT & RACE HUD LOGIC
+    // ============================================================
+    const screenInput = document.getElementById('screen-input');
+    const screenRace = document.getElementById('screen-race');
+
+    function showInputScreen() {
+      screenInput.classList.remove('hidden');
+      screenRace.classList.add('hidden');
+    }
+
+    function showRaceScreen() {
+      screenInput.classList.add('hidden');
+      screenRace.classList.remove('hidden');
+      updateRaceHUD();
+    }
+
+    function updateRaceHUD() {
+      if (!currentUser || !currentUser.team || !teamsData[currentUser.team]) return;
+
+      const myTeam = teamsData[currentUser.team];
+      const sorted = Object.values(teamsData).sort((a, b) => b.memberCount - a.memberCount);
+      const rank = sorted.findIndex(t => t.name === myTeam.name) + 1;
+
+      document.getElementById('myTeamNameBadge').innerText = myTeam.name;
+      document.getElementById('myRankBadge').innerText = rank > 0 ? `Posisi #${rank}` : 'Menunggu...';
+      document.getElementById('myTeamMemberCount').innerText = myTeam.memberCount;
+      document.getElementById('myTeamColorDot').style.backgroundColor = myTeam.color;
+
+      updateHighlightBanner();
+    }
+
+    function setHighlight(teamName) {
+      const formatted = teamName.trim().toUpperCase();
+      if (!formatted || !teamsData[formatted]) {
+        alert(`Kelompok "${formatted}" tidak ditemukan.`);
+        return;
+      }
+      currentlyHighlightedTeam = formatted;
+      document.getElementById('highlightInput').value = formatted;
+      document.getElementById('btnClearHighlight').classList.remove('hidden');
+      updateHighlightBanner();
+    }
+
+    function focusMyTeam() {
+      if (currentUser && currentUser.team) {
+        setHighlight(currentUser.team);
+      }
+    }
+
+    document.getElementById('btnFocusMyTeam').addEventListener('click', focusMyTeam);
+
+    function updateHighlightBanner() {
+      const banner = document.getElementById('highlightBanner');
+      const bannerText = document.getElementById('highlightBannerText');
+
+      if (!currentlyHighlightedTeam || !teamsData[currentlyHighlightedTeam]) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      if (currentlyHighlightedTeam === currentUser?.team) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      const team = teamsData[currentlyHighlightedTeam];
+      const sorted = Object.values(teamsData).sort((a, b) => b.memberCount - a.memberCount);
+      const rank = sorted.findIndex(t => t.name === team.name) + 1;
+
+      bannerText.innerHTML = `📍 Menyorot: <span class="text-white">${team.name}</span> | Peringkat <span class="text-white">#${rank}</span> (${team.memberCount} Anggota)`;
+      banner.classList.remove('hidden');
+    }
+
+    document.getElementById('btnApplyHighlight').addEventListener('click', () => {
+      const val = document.getElementById('highlightInput').value;
+      if (val) setHighlight(val);
+    });
+
+    document.getElementById('btnClearHighlight').addEventListener('click', () => {
+      currentlyHighlightedTeam = currentUser?.team || null;
+      document.getElementById('highlightInput').value = '';
+      document.getElementById('btnClearHighlight').classList.add('hidden');
+      updateHighlightBanner();
+    });
+
+    // Modal Leaderboard Controls
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    document.getElementById('btnOpenLeaderboard').addEventListener('click', () => {
+      renderModalLeaderboard();
+      leaderboardModal.classList.remove('hidden');
+    });
+    document.getElementById('btnCloseLeaderboard').addEventListener('click', () => {
+      leaderboardModal.classList.add('hidden');
+    });
+
+    function renderModalLeaderboard() {
+      const list = document.getElementById('leaderboardModalList');
+      const teams = Object.values(teamsData).sort((a, b) => b.memberCount - a.memberCount);
+
+      if (teams.length === 0) {
+        list.innerHTML = `<div class="text-center text-slate-500 py-8 text-xs">Belum ada kelompok.</div>`;
+        return;
+      }
+
+      list.innerHTML = '';
+      teams.forEach((team, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+        const isMyTeam = team.name === currentUser?.team;
+        const isHighlight = team.name === currentlyHighlightedTeam;
+
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-xl border transition cursor-pointer space-y-1 ${
+          isHighlight 
+            ? 'bg-amber-500/20 border-amber-500/60' 
+            : isMyTeam 
+              ? 'bg-cyan-950/50 border-cyan-500/50' 
+              : 'bg-slate-950/80 border-slate-800 hover:bg-slate-800'
+        }`;
+        item.onclick = () => {
+          setHighlight(team.name);
+          leaderboardModal.classList.add('hidden');
+        };
+
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="font-extrabold text-sm ${idx < 3 ? 'text-amber-400 text-base' : 'text-slate-500'}">${medal}</span>
+              <div class="w-3.5 h-3.5 rounded-full" style="background-color: ${team.color}"></div>
+              <span class="font-bold text-white text-xs uppercase tracking-wider">${team.name} ${isMyTeam ? '🌟 (Kelompokmu)' : ''}</span>
+            </div>
+            <span class="text-xs font-bold text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${team.memberCount}👥</span>
+          </div>
+          <p class="text-[11px] text-slate-400 italic line-clamp-1">"${team.description}"</p>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // Modal Description Details Controls
+    const descModal = document.getElementById('descModal');
+    function showTeamDescModal(teamName) {
+      const team = teamsData[teamName];
+      if (!team) return;
+
+      document.getElementById('modalTeamName').innerText = team.name;
+      document.getElementById('modalTeamDesc').innerText = `"${team.description}"`;
+      document.getElementById('modalTeamCreator').innerText = team.createdBy === currentUser?.userId ? 'Kamu (Ketua)' : team.createdBy;
+      document.getElementById('modalTeamMembers').innerText = `${team.memberCount} Anggota`;
+      document.getElementById('modalTeamColorDot').style.backgroundColor = team.color;
+
+      descModal.classList.remove('hidden');
+    }
+
+    document.getElementById('btnViewDescModal').addEventListener('click', () => {
+      if (currentUser?.team) showTeamDescModal(currentUser.team);
+    });
+
+    document.getElementById('btnCloseDescModal').addEventListener('click', () => {
+      descModal.classList.add('hidden');
+    });
+
+    // ============================================================
+    // 9. APP INITIALIZATION BOOTSTRAP
+    // ============================================================
+    async function initApp() {
+      initColorPalette();
+
+      // Execute Triad Self-Healing Identity Recovery Engine
+      const result = await TriadStorage.restoreAndSyncIdentity();
+      currentUser = result.identity;
+
+      document.getElementById('userIdDisplay').innerText = currentUser.userId;
+
+      // Show restoration alert if healing occurred from remaining stores
+      if (result.healedFrom && result.healedFrom.length > 0) {
+        const alertEl = document.getElementById('identityAlert');
+        document.getElementById('identityAlertText').innerText = 
+          `Identitas dipulihkan secara otomatis dari penyimpanan tersisa! (Media yang terhapus/hilang: ${result.healedFrom.join(', ')})`;
+        alertEl.classList.remove('hidden');
+      }
+
+      // Check if user has already joined/created a fish group
+      if (currentUser.team) {
+        currentlyHighlightedTeam = currentUser.team;
+        showRaceScreen();
+      } else {
+        showInputScreen();
+      }
+
+      // Start Canvas Render Loop
+      requestAnimationFrame(renderRaceCanvas);
+    }
+
+    window.onload = function() {
+      initApp();
+    };
+  </script>
+</body>
+</html>
